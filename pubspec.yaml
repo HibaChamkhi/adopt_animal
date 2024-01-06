@@ -30,6 +30,26 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  get_it: ^7.0.0
+  #state management
+  flutter_bloc: ^8.1.2
+  equatable: 2.0.5
+  font_awesome_flutter:
+
+  network_image: ^0.1.1
+
+  intl: ^0.18.1
+
+  #firebase
+  firebase_core :
+  firebase_auth: ^4.6.1
+  cloud_firestore: ^4.7.1
+  firebase_storage: ^11.2.1
+  google_sign_in: ^6.1.0
+  image_picker: ^0.8.7+5
+  fluttertoast: ^8.2.1
+  #message shape bubble
+  bubble: ^1.2.1
 
 
   # The following adds the Cupertino Icons font to your application.
@@ -59,8 +79,8 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
+  assets:
+     - assets/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

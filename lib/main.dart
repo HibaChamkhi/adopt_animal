@@ -1,6 +1,15 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'features/auth/presentation/cubit/auth/auth_cubit.dart';
+import 'features/auth/presentation/pages/signUp_page.dart';
+import 'injection.dart' as di;
+import 'on_generate_route.dart';
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  await di.init();
   runApp(const MyApp());
 }
 
@@ -10,37 +19,34 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthCubit>(create: (_) => di.sl<AuthCubit>()..appStarted()),
+      ],
+      child: MaterialApp(
+        title: 'Adopt Animals',
+        onGenerateRoute: OnGenerateRoute.route,
+        debugShowCheckedModeBanner: false,
+        initialRoute: "/",
+        routes: {
+          "/" : (context){
+            return BlocBuilder<AuthCubit,AuthState>(
+              builder: (context,authState){
+                if (authState is Authenticated){
+                  return Container();
+                }else{
+                  return const SignUpPage();
+                }
+              },
+            );
+          }
+        },
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+        ),
       ),
-      home: const MyHomePage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
 
-
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-
-
-  @override
-  Widget build(BuildContext context) {
-
-    return Scaffold(
-      appBar: AppBar(
-
-      ),
-      body: Center(
-      ), // This trailing comma makes auto-formatting nicer for build methods.
-    );
-  }
-}

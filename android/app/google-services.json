@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1057548746820",
+    "project_id": "adoptanimals-4f10a",
+    "storage_bucket": "adoptanimals-4f10a.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1057548746820:android:d81ea30d0e9d66cb917c11",
+        "android_client_info": {
+          "package_name": "com.example.adopt_animal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCtKiHzx6XLhgbrxezbH93DlHLMugoDHRg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
