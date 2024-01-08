@@ -67,8 +67,8 @@ class _SignUpPageState extends State<SignUpPage> {
         margin: const EdgeInsets.symmetric(horizontal: 22,vertical: 32),
         child: Column(
           children: [
-            SizedBox(height: 15,),
-            Align(
+            const SizedBox(height: 15,),
+            const Align(
               alignment: Alignment.topLeft,
               child: Text(
                 "Registration",
