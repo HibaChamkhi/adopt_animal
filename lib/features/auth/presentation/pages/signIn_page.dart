@@ -1,26 +1,32 @@
-import 'package:adopt_animal/features/auth/presentation/cubit/auth/auth_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
 import '../../../../core/app_theme.dart';
 import '../../../../core/const/page_const.dart';
 import '../../../../core/container_button.dart';
 import '../../../../core/text_field_container.dart';
 import '../../../../core/toast.dart';
-import '../../domain/entities/user_entity.dart';
+import '../cubit/auth/auth_cubit.dart';
 
-class SignUpPage extends StatefulWidget {
-  const SignUpPage({Key? key}) : super(key: key);
+class LoginPage extends StatefulWidget {
+  const LoginPage({Key? key}) : super(key: key);
 
   @override
-  State<SignUpPage> createState() => _SignUpPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _SignUpPageState extends State<SignUpPage> {
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _passwordAgainController =
-      TextEditingController();
+class _LoginPageState extends State<LoginPage> {
+  TextEditingController _emailController = TextEditingController();
+  TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +43,8 @@ class _SignUpPageState extends State<SignUpPage> {
             return BlocBuilder<AuthCubit, AuthState>(
               builder: (context, authState) {
                 if (authState is Authenticated) {
-                  return Container(
-                    child: const Text("successs"),
+                  return const Scaffold(
+                    body: Text("home home"),
                   );
                 } else {
                   return _bodyWidget();
@@ -53,9 +59,11 @@ class _SignUpPageState extends State<SignUpPage> {
           if (credentialState is CredentialSuccess) {
             BlocProvider.of<AuthCubit>(context).loggedIn();
           }
+
           if (credentialState is CredentialFailure) {
             toast("wrong email please check");
-
+            //toast
+            //alertDialog
             ///SnackBar
           }
         },
@@ -65,7 +73,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
   Widget _bodyWidget() {
     return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 22, vertical: 32),
         child: Column(
@@ -76,7 +83,7 @@ class _SignUpPageState extends State<SignUpPage> {
             const Align(
               alignment: Alignment.topLeft,
               child: Text(
-                "Registration",
+                "Login",
                 style: TextStyle(
                   fontSize: 35,
                   fontWeight: FontWeight.w700,
@@ -94,14 +101,6 @@ class _SignUpPageState extends State<SignUpPage> {
               height: 10,
             ),
             TextFieldContainer(
-              prefixIcon: Icons.person,
-              controller: _usernameController,
-              hintText: "username",
-            ),
-            const SizedBox(
-              height: 20,
-            ),
-            TextFieldContainer(
               prefixIcon: Icons.email,
               controller: _emailController,
               hintText: "Email",
@@ -109,37 +108,40 @@ class _SignUpPageState extends State<SignUpPage> {
             const SizedBox(
               height: 20,
             ),
-            const Divider(
-              thickness: 2,
-              indent: 120,
-              endIndent: 120,
-            ),
-            const SizedBox(
-              height: 20,
-            ),
             TextFieldContainer(
-              prefixIcon: Icons.lock,
+              prefixIcon: Icons.email,
               controller: _passwordController,
               hintText: "Password",
               isObscureText: true,
             ),
             const SizedBox(
-              height: 20,
+              height: 10,
             ),
-            TextFieldContainer(
-              prefixIcon: Icons.lock,
-              controller: _passwordAgainController,
-              hintText: "Password (Again)",
-              isObscureText: true,
+            Align(
+              alignment: Alignment.topRight,
+              child: InkWell(
+                onTap: () {
+                  //Navigate
+                  //  Navigator.pushNamed(context, PageConst.forgotPage);
+                },
+                child: const Text(
+                  "Forgot Password",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: bermudaGray,
+                  ),
+                ),
+              ),
             ),
             const SizedBox(
               height: 20,
             ),
             ContainerButton(
               onTap: () {
-                _submitSignUp();
+                _submitLogin();
               },
-              title: "Sign Up",
+              title: "Login",
             ),
             const SizedBox(
               height: 20,
@@ -147,7 +149,7 @@ class _SignUpPageState extends State<SignUpPage> {
             Row(
               children: <Widget>[
                 const Text(
-                  "Do you have already an account?",
+                  "don't have an Account",
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(
@@ -155,11 +157,11 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
                 InkWell(
                   onTap: () {
-                    //Navigator.pushNamedAndRemoveUntil(context, "/registration", (route) => false);
-                     Navigator.pushNamedAndRemoveUntil(context, PageConst.loginPage,(routes) => false);
+                    Navigator.pushNamedAndRemoveUntil(
+                        context, PageConst.registrationPage, (routes) => false);
                   },
                   child: const Text(
-                    'Login',
+                    'Register',
                     style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -168,46 +170,25 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
               ],
             ),
-            Container(child: Image.asset("assets/animals.png"))
+
           ],
         ),
       ),
     );
   }
 
-  void _submitSignUp() {
-    if (_usernameController.text.isEmpty) {
-      toast("Enter username");
-      return;
-    }
-
+  void _submitLogin() {
     if (_emailController.text.isEmpty) {
-      toast("Enter email");
+      toast("Enter Your Email");
       return;
     }
 
     if (_passwordController.text.isEmpty) {
-      toast("Enter password");
+      toast("Enter Your Password");
       return;
     }
 
-    if (_passwordAgainController.text.isEmpty) {
-      toast("Enter again password");
-      return;
-    }
-
-    if (_passwordController.text != _passwordAgainController.text) {
-      toast("both password must be same");
-      return;
-    }
-
-    BlocProvider.of<AuthCubit>(context).signUpSubmit(
-        user: UserEntity(
-      name: _usernameController.text,
-      profileUrl: "",
-      status: "",
-      email: _emailController.text,
-      password: _passwordController.text,
-    ));
+    BlocProvider.of<AuthCubit>(context).signInSubmit(
+        email: _emailController.text, password: _passwordController.text);
   }
 }

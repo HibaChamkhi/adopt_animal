@@ -38,9 +38,12 @@ class AuthCubit extends Cubit<AuthState> {
         password: password,
       ));
       emit(CredentialSuccess());
+      print("0");
     } on SocketException catch (_) {
+      print("1");
       emit(CredentialFailure());
     } catch (_) {
+      print("2");
       emit(CredentialFailure());
     }
   }

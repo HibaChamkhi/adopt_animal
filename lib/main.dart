@@ -2,7 +2,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'features/auth/presentation/cubit/auth/auth_cubit.dart';
+import 'features/auth/presentation/pages/signIn_page.dart';
 import 'features/auth/presentation/pages/signUp_page.dart';
+import 'features/home.dart';
 import 'injection.dart' as di;
 import 'on_generate_route.dart';
 
@@ -15,7 +17,6 @@ void main() async{
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
@@ -33,9 +34,9 @@ class MyApp extends StatelessWidget {
             return BlocBuilder<AuthCubit,AuthState>(
               builder: (context,authState){
                 if (authState is Authenticated){
-                  return Container();
+                  return HomePage();
                 }else{
-                  return const SignUpPage();
+                  return const LoginPage();
                 }
               },
             );

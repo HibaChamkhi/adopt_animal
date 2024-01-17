@@ -1,4 +1,5 @@
 
+import 'package:adopt_animal/features/auth/presentation/pages/signIn_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -15,6 +16,9 @@ class OnGenerateRoute{
     switch(settings.name){
       case PageConst.registrationPage :{
         return materialPageBuilder(widget: const SignUpPage());
+      }
+      case PageConst.loginPage :{
+        return materialPageBuilder(widget: const LoginPage());
       }
       default:
         return materialPageBuilder(widget: const ErrorPage());
