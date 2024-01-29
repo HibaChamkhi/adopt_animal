@@ -1,3 +1,4 @@
+import 'package:adopt_animal/features/profile/presentation/pages/settings.dart';
 import 'package:animated_notch_bottom_bar/animated_notch_bottom_bar/animated_notch_bottom_bar.dart';
 import 'package:flutter/material.dart';
 
@@ -19,19 +20,18 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
   final List<Widget> bottomBarPages = [
-    const Text("page1",style: TextStyle(color: Colors.blue),),
+    InkWell(onTap: (){
+
+    }
+  ,child: const Text("page1",style: TextStyle(color: Colors.blue),)),
     const Text("page2"),
     const Text("page3"),
-    const Text("page4")
-  ];
+    const SettingsPage()  ];
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       bottomNavigationBar: AnimatedNotchBottomBar(
-          kBottomRadius: 20,
-          kIconSize: 20,
           notchBottomBarController: _controller,
-
           bottomBarItems: const [
             BottomBarItem(
               inActiveItem: Icon(
@@ -78,13 +78,10 @@ class _HomePageState extends State<HomePage> {
           print('current selected index $index');
           _pageController.jumpToPage(index);
         },),
-      body:  Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 32),
-        child:  PageView(
-    controller: _pageController,
-    physics: const NeverScrollableScrollPhysics(),
-    children: List.generate(bottomBarPages.length, (index) => bottomBarPages[index]),
-        )
+      body:  PageView(
+          controller: _pageController,
+          physics: const NeverScrollableScrollPhysics(),
+          children: List.generate(bottomBarPages.length, (index) => bottomBarPages[index]),
       ),
       extendBody: true,
     );

@@ -30,15 +30,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  get_it: ^7.0.0
   #state management
   flutter_bloc: ^8.1.2
   equatable: 2.0.5
   font_awesome_flutter:
   animated_notch_bottom_bar: ^1.0.0
-
+  get_it: ^7.2.0
   network_image: ^0.1.1
-
+  flutter_svg: ^2.0.9
   intl: ^0.18.1
 
   #firebase
@@ -95,10 +94,10 @@ flutter:
   # "family" key with the font family name, and a "fonts" key with a
   # list giving the asset and other descriptors for the font. For
   # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
+  fonts:
+   - family: DancingScript
+     fonts:
+        - asset: assets/fonts/DancingScript-Bold.ttf
   #       - asset: fonts/Schyler-Italic.ttf
   #         style: italic
   #   - family: Trajan Pro

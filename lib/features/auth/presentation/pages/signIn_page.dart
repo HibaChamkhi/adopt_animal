@@ -31,6 +31,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: BlocConsumer<AuthCubit, AuthState>(
         builder: (context, credentialState) {
           if (credentialState is CredentialLoading) {
@@ -170,6 +171,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ],
             ),
+            Image.asset("assets/2.png")
 
           ],
         ),

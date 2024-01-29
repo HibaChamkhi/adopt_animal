@@ -25,6 +25,7 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: BlocConsumer<AuthCubit, AuthState>(
         builder: (context, credentialState) {
           if (credentialState is CredentialLoading) {
@@ -37,9 +38,7 @@ class _SignUpPageState extends State<SignUpPage> {
             return BlocBuilder<AuthCubit, AuthState>(
               builder: (context, authState) {
                 if (authState is Authenticated) {
-                  return Container(
-                    child: const Text("successs"),
-                  );
+                  return const Text("successs");
                 } else {
                   return _bodyWidget();
                 }
@@ -55,7 +54,6 @@ class _SignUpPageState extends State<SignUpPage> {
           }
           if (credentialState is CredentialFailure) {
             toast("wrong email please check");
-
             ///SnackBar
           }
         },
@@ -168,7 +166,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
               ],
             ),
-            Container(child: Image.asset("assets/animals.png"))
+           Image.asset("assets/1.png")
           ],
         ),
       ),

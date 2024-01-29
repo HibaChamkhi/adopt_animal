@@ -12,6 +12,10 @@ import 'features/auth/domain/useCases/sign_out_use_case.dart';
 import 'features/auth/domain/useCases/signin_use_case.dart';
 import 'features/auth/domain/useCases/signup_use_case.dart';
 import 'features/auth/presentation/cubit/auth/auth_cubit.dart';
+import 'features/profile/data/dataSources/profile_remote_data_sources.dart';
+import 'features/profile/data/repository/profile_repository.dart';
+import 'features/profile/domain/repository/profile_repository_impl.dart';
+import 'features/profile/presentation/cubit/profile_cubit.dart';
 
 final sl = GetIt.instance;
 
@@ -23,6 +27,9 @@ Future<void> init() async {
       isSignInUseCase: sl.call(),
       signOutUseCase: sl.call(),
       getCurrentUIDUseCase: sl.call()));
+  sl.registerFactory<ProfileCubit>(() => ProfileCubit(
+      signOutUseCase: sl.call(),
+    ));
 
   //UseCases
 
@@ -40,11 +47,14 @@ Future<void> init() async {
   //Repository
   sl.registerLazySingleton<AuthRepository>(
       () => AuthRepositoryImpl(remoteDataSource: sl.call()));
+  sl.registerLazySingleton<ProfileRepository>(
+      () => ProfileRepositoryImpl(remoteDataSource: sl.call()));
 
   // RemoteDataSource
   sl.registerLazySingleton<AuthRemoteDataSource>(() => AuthRemoteDataSourceImpl(
       fireStore: sl.call(), auth: sl.call(), googleSignIn: sl.call()));
-
+  sl.registerLazySingleton<ProfileRemoteDataSource>(() => ProfileRemoteDataSourceImpl(
+      fireStore: sl.call(), auth: sl.call(), googleSignIn: sl.call()));
   /// External
   final auth = FirebaseAuth.instance;
   final fireStore = FirebaseFirestore.instance;

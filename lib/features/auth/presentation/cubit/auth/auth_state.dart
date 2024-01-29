@@ -7,6 +7,7 @@ class AuthInitial extends AuthState {
   @override
   List<Object> get props => [];
 }
+
 class Authenticated extends AuthState {
   final String uid;
 
@@ -20,6 +21,7 @@ class UnAuthenticated extends AuthState {
   @override
   List<Object> get props => [];
 }
+
 class CredentialLoading extends AuthState {
   @override
   List<Object> get props => [];
