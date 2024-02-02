@@ -4,7 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'features/auth/presentation/cubit/auth/auth_cubit.dart';
 import 'features/auth/presentation/pages/signIn_page.dart';
 import 'features/auth/presentation/pages/signUp_page.dart';
-import 'features/home.dart';
+import 'features/auth/presentation/pages/splash_screen.dart';
+import 'features/bottom_nav_bar.dart';
 import 'injection.dart' as di;
 import 'on_generate_route.dart';
 
@@ -30,18 +31,9 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         initialRoute: "/",
         routes: {
-          "/" : (context){
-            return BlocBuilder<AuthCubit,AuthState>(
-              builder: (context,authState){
-                if (authState is Authenticated){
-                  return HomePage();
-                }else{
-                  return const LoginPage();
-                }
-              },
-            );
-          }
+
         },
+        home: const SplashScreen(),
         theme: ThemeData(
           primarySwatch: Colors.blue,
         ),

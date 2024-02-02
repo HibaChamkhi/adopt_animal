@@ -1,3 +1,4 @@
+import 'package:adopt_animal/features/auth/presentation/pages/signIn_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
@@ -121,7 +122,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                                     color: Colors.grey)),
                                             child: TextButton(
                                               onPressed: () {
-                                                BlocProvider.of<ProfileCubit>(profileContext).loggedOut();
+                                               BlocProvider.of<ProfileCubit>(profileContext).loggedOut();
+                                               Navigator.pushReplacementNamed(context, PageConst.loginPage);
                                               },
                                               child: const Text(
                                                 'Yes',
@@ -178,7 +180,9 @@ class _SettingsPageState extends State<SettingsPage> {
         },
         listener: (context, credentialState) {
           if (credentialState.successLogout) {
-            Navigator.pushReplacementNamed(context, PageConst.loginPage);
+            print("dggdgdfgdfgdfgdfg");
+            //
+
           }
         },
       ),
@@ -246,13 +250,13 @@ class MenuRow extends StatelessWidget {
                   style: const TextStyle(
                     color: Color(0xFF111827),
                     fontSize: 16,
-                    fontFamily: 'Outfit',
+                    fontFamily: "Exo2",
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
-            Spacer(),
+            const Spacer(),
             // Icon...
             SvgPicture.asset(
               'assets/right-arrow.svg',

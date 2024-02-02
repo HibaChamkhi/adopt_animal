@@ -1,4 +1,5 @@
 import 'package:adopt_animal/features/auth/presentation/cubit/auth/auth_cubit.dart';
+import 'package:adopt_animal/features/auth/presentation/pages/signIn_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/app_theme.dart';
@@ -33,28 +34,16 @@ class _SignUpPageState extends State<SignUpPage> {
               child: CircularProgressIndicator(),
             );
           }
-
-          if (credentialState is CredentialSuccess) {
-            return BlocBuilder<AuthCubit, AuthState>(
-              builder: (context, authState) {
-                if (authState is Authenticated) {
-                  return const Text("successs");
-                } else {
-                  return _bodyWidget();
-                }
-              },
-            );
-          }
-
           return _bodyWidget();
         },
         listener: (context, credentialState) {
           if (credentialState is CredentialSuccess) {
             BlocProvider.of<AuthCubit>(context).loggedIn();
-          }
-          if (credentialState is CredentialFailure) {
-            toast("wrong email please check");
-            ///SnackBar
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => const LoginPage(),
+              ),
+            );
           }
         },
       ),

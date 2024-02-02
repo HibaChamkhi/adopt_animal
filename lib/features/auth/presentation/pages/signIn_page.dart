@@ -1,3 +1,5 @@
+import 'package:adopt_animal/features/bottom_nav_bar.dart';
+import 'package:adopt_animal/features/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -39,26 +41,16 @@ class _LoginPageState extends State<LoginPage> {
               child: CircularProgressIndicator(),
             );
           }
-
-          if (credentialState is CredentialSuccess) {
-            return BlocBuilder<AuthCubit, AuthState>(
-              builder: (context, authState) {
-                if (authState is Authenticated) {
-                  return const Scaffold(
-                    body: Text("home home"),
-                  );
-                } else {
-                  return _bodyWidget();
-                }
-              },
-            );
-          }
-
           return _bodyWidget();
         },
         listener: (context, credentialState) {
           if (credentialState is CredentialSuccess) {
             BlocProvider.of<AuthCubit>(context).loggedIn();
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => const BottomNavBarPage(),
+              ),
+            );
           }
 
           if (credentialState is CredentialFailure) {
