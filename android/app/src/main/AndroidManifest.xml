@@ -1,5 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.adopt_animal">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
    <application
         android:label="adopt_animal"
         android:name="${applicationName}"
@@ -31,4 +30,10 @@
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+    </queries>
 </manifest>

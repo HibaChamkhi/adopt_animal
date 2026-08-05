@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:bloc/bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:meta/meta.dart';
 
 import '../../../domain/entities/user_entity.dart';
@@ -38,13 +39,25 @@ class AuthCubit extends Cubit<AuthState> {
         password: password,
       ));
       emit(CredentialSuccess());
-      print("0");
     } on SocketException catch (_) {
-      print("1");
-      emit(CredentialFailure());
+      emit(CredentialFailure(
+          message: "No internet connection. Please try again."));
+    } on FirebaseAuthException catch (e) {
+      // Some firebase_auth versions authenticate the user but still throw.
+      if (await _safeIsSignedIn()) {
+        emit(CredentialSuccess());
+      } else {
+        emit(CredentialFailure(message: _authErrorMessage(e)));
+      }
     } catch (_) {
-      print("2");
-      emit(CredentialFailure());
+      // Known firebase_auth type-cast bug: auth succeeds but the plugin throws
+      // while unwrapping the result. Trust the real auth state before failing.
+      if (await _safeIsSignedIn()) {
+        emit(CredentialSuccess());
+      } else {
+        emit(CredentialFailure(
+            message: "Something went wrong. Please try again."));
+      }
     }
   }
 
@@ -54,9 +67,55 @@ class AuthCubit extends Cubit<AuthState> {
       await signUpUseCase.call(user);
       emit(CredentialSuccess());
     } on SocketException catch (_) {
-      emit(CredentialFailure());
+      emit(CredentialFailure(
+          message: "No internet connection. Please try again."));
+    } on FirebaseAuthException catch (e) {
+      if (await _safeIsSignedIn()) {
+        emit(CredentialSuccess());
+      } else {
+        emit(CredentialFailure(message: _authErrorMessage(e)));
+      }
     } catch (_) {
-      emit(CredentialFailure());
+      if (await _safeIsSignedIn()) {
+        emit(CredentialSuccess());
+      } else {
+        emit(CredentialFailure(
+            message: "Something went wrong. Please try again."));
+      }
+    }
+  }
+
+  Future<bool> _safeIsSignedIn() async {
+    try {
+      return await isSignInUseCase.call();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  String _authErrorMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-email':
+        return "That email address looks invalid.";
+      case 'user-not-found':
+        return "No account found for that email.";
+      case 'wrong-password':
+      case 'invalid-credential':
+        return "Incorrect email or password.";
+      case 'user-disabled':
+        return "This account has been disabled.";
+      case 'email-already-in-use':
+        return "That email is already registered. Try logging in.";
+      case 'weak-password':
+        return "Password is too weak (use at least 6 characters).";
+      case 'too-many-requests':
+        return "Too many attempts. Please try again later.";
+      case 'operation-not-allowed':
+        return "Email/password sign-in is not enabled for this project.";
+      case 'network-request-failed':
+        return "Network error. Please check your connection.";
+      default:
+        return e.message ?? "Authentication failed. Please try again.";
     }
   }
 

@@ -8,6 +8,7 @@ import 'features/auth/data/repository/auth_repository.dart';
 import 'features/auth/domain/repository/auth_repository_impl.dart';
 import 'features/auth/domain/useCases/Is_signIn_use_case.dart';
 import 'features/auth/domain/useCases/get_current_uid_use_case.dart';
+import 'features/auth/domain/useCases/get_current_user_use_case.dart';
 import 'features/auth/domain/useCases/sign_out_use_case.dart';
 import 'features/auth/domain/useCases/signin_use_case.dart';
 import 'features/auth/domain/useCases/signup_use_case.dart';
@@ -35,6 +36,8 @@ Future<void> init() async {
 
   sl.registerLazySingleton<GetCurrentUIDUseCase>(
           () => GetCurrentUIDUseCase(repository: sl.call()));
+  sl.registerLazySingleton<GetCurrentUserUseCase>(
+          () => GetCurrentUserUseCase(repository: sl.call()));
   sl.registerLazySingleton<IsSignInUseCase>(
           () => IsSignInUseCase(repository: sl.call()));
   sl.registerLazySingleton<SignInUseCase>(

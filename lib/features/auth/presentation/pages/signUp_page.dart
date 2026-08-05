@@ -23,6 +23,8 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _passwordAgainController =
       TextEditingController();
 
+  String _role = "adopter";
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -44,6 +46,10 @@ class _SignUpPageState extends State<SignUpPage> {
                 builder: (_) => const LoginPage(),
               ),
             );
+          }
+
+          if (credentialState is CredentialFailure) {
+            toast(credentialState.message ?? "Sign-up failed. Please try again.");
           }
         },
       ),
@@ -67,7 +73,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 style: TextStyle(
                   fontSize: 35,
                   fontWeight: FontWeight.w700,
-                  color: bermudaGray,
+                  color: AppColors.primaryDark,
                 ),
               ),
             ),
@@ -92,6 +98,38 @@ class _SignUpPageState extends State<SignUpPage> {
               prefixIcon: Icons.email,
               controller: _emailController,
               hintText: "Email",
+            ),
+            const SizedBox(
+              height: 20,
+            ),
+            const Align(
+              alignment: Alignment.topLeft,
+              child: Text(
+                "I'm joining as",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: bermudaGray,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                ChoiceChip(
+                  label: const Text("Adopter / Owner"),
+                  selected: _role == "adopter",
+                  selectedColor: careysPink,
+                  onSelected: (_) => setState(() => _role = "adopter"),
+                ),
+                const SizedBox(width: 10),
+                ChoiceChip(
+                  label: const Text("Veterinarian"),
+                  selected: _role == "vet",
+                  selectedColor: careysPink,
+                  onSelected: (_) => setState(() => _role = "vet"),
+                ),
+              ],
             ),
             const SizedBox(
               height: 20,
@@ -195,6 +233,7 @@ class _SignUpPageState extends State<SignUpPage> {
       status: "",
       email: _emailController.text,
       password: _passwordController.text,
+      role: _role,
     ));
   }
 }

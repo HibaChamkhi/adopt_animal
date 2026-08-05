@@ -5,26 +5,24 @@ import 'app_theme.dart';
 class ContainerButton extends StatelessWidget {
   final VoidCallback? onTap;
   final String? title;
-  const ContainerButton({Key? key,this.title,this.onTap}) : super(key: key);
+  const ContainerButton({Key? key, this.title, this.onTap}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return  InkWell(
-      onTap: onTap,
-      child: Container(
-        alignment: Alignment.center,
-        height: 44,
-        width: MediaQuery.of(context).size.width,
-        decoration: BoxDecoration(
-          color: bermudaGray,
-          borderRadius: BorderRadius.all(Radius.circular(10)),
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         ),
         child: Text(
-          title!,
-          style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: Colors.white),
+          title ?? "",
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
     );

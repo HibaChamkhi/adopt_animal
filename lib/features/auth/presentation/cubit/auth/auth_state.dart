@@ -33,6 +33,10 @@ class CredentialSuccess extends AuthState {
 }
 
 class CredentialFailure extends AuthState {
+  final String? message;
+
+  CredentialFailure({this.message});
+
   @override
-  List<Object> get props => [];
+  List<Object> get props => [message ?? ""];
 }

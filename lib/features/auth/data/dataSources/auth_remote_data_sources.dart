@@ -22,6 +22,8 @@ abstract class AuthRemoteDataSource {
 
   Future<String> getCurrentUId();
 
+  Future<UserEntity> getCurrentUser();
+
   Stream<List<UserEntity>> getAllUsers(UserEntity user);
 
   Stream<List<UserEntity>> getSingleUser(UserEntity user);
@@ -79,6 +81,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           status: user.status,
           profileUrl: user.profileUrl,
           name: user.name,
+          role: user.role ?? 'adopter',
+          phone: user.phone,
+          city: user.city,
+          bio: user.bio,
         ).toDocument();
 
         userCollection.doc(uid).set(newUser);
@@ -91,6 +97,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<String> getCurrentUId() async => auth.currentUser!.uid;
+
+  @override
+  Future<UserEntity> getCurrentUser() async {
+    final uid = await getCurrentUId();
+    final doc = await fireStore.collection("users").doc(uid).get();
+    if (doc.exists) {
+      return UserModel.fromSnapshot(doc);
+    }
+    return const UserEntity();
+  }
 
   @override
   Stream<List<UserEntity>> getSingleUser(UserEntity user) {
@@ -148,6 +164,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         email: information.email,
         status: "",
         profileUrl: information.photoURL,
+        role: "adopter",
       ));
     } catch (_) {}
   }

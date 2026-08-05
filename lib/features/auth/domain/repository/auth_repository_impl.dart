@@ -9,6 +9,7 @@ abstract class AuthRepository{
   Future<void> signOut();
   Future<void> getUpdateUser(UserEntity user);
   Future<String> getCurrentUId();
+  Future<UserEntity> getCurrentUser();
   Stream<List<UserEntity>> getAllUsers(UserEntity user);
   Stream<List<UserEntity>> getSingleUser(UserEntity user);
 }

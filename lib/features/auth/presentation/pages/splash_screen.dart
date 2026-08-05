@@ -1,7 +1,7 @@
 import 'package:adopt_animal/features/auth/presentation/pages/signIn_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../bottom_nav_bar.dart';
+import '../../../main_shell.dart';
 import '../cubit/auth/auth_cubit.dart';
 import '/injection.dart' as di;
 
@@ -38,7 +38,7 @@ class _SplashScreenState extends State<SplashScreen> {
               Future.delayed(const Duration(seconds: 4), () {
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(
-                    builder: (_) => const BottomNavBarPage(),
+                    builder: (_) => const MainShell(),
                   ),
                 );
               });

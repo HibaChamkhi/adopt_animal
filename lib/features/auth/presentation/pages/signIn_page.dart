@@ -1,4 +1,4 @@
-import 'package:adopt_animal/features/bottom_nav_bar.dart';
+import 'package:adopt_animal/features/main_shell.dart';
 import 'package:adopt_animal/features/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -48,16 +48,13 @@ class _LoginPageState extends State<LoginPage> {
             BlocProvider.of<AuthCubit>(context).loggedIn();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => const BottomNavBarPage(),
+                builder: (_) => const MainShell(),
               ),
             );
           }
 
           if (credentialState is CredentialFailure) {
-            toast("wrong email please check");
-            //toast
-            //alertDialog
-            ///SnackBar
+            toast(credentialState.message ?? "Sign-in failed. Please try again.");
           }
         },
       ),
@@ -80,7 +77,7 @@ class _LoginPageState extends State<LoginPage> {
                 style: TextStyle(
                   fontSize: 35,
                   fontWeight: FontWeight.w700,
-                  color: bermudaGray,
+                  color: AppColors.primaryDark,
                 ),
               ),
             ),
@@ -122,7 +119,7 @@ class _LoginPageState extends State<LoginPage> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: bermudaGray,
+                    color: AppColors.primary,
                   ),
                 ),
               ),

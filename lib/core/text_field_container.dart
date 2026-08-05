@@ -1,30 +1,43 @@
 import 'package:flutter/material.dart';
 
+import 'app_theme.dart';
+
 class TextFieldContainer extends StatelessWidget {
   final bool? isObscureText;
   final TextInputType? keyboardType;
   final TextEditingController? controller;
   final String? hintText;
   final IconData? prefixIcon;
-  const TextFieldContainer({Key? key,this.hintText,this.prefixIcon,this.isObscureText,this.keyboardType,this.controller}) : super(key: key);
+  const TextFieldContainer({
+    Key? key,
+    this.hintText,
+    this.prefixIcon,
+    this.isObscureText,
+    this.keyboardType,
+    this.controller,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 45,
-      width: MediaQuery.of(context).size.width,
       decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(.2),
-          borderRadius: BorderRadius.circular(10)
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0F1F2A44), blurRadius: 12, offset: Offset(0, 4)),
+        ],
       ),
       child: TextField(
-        obscureText:isObscureText == true? true:false,
-        keyboardType: keyboardType==null?TextInputType.text:keyboardType,
+        obscureText: isObscureText == true,
+        keyboardType: keyboardType ?? TextInputType.text,
         controller: controller,
+        style: AppText.body,
         decoration: InputDecoration(
-            prefixIcon: Icon(prefixIcon==null?Icons.circle:prefixIcon),
-            hintText: hintText,
-            border: InputBorder.none
+          prefixIcon: Icon(prefixIcon ?? Icons.circle, color: AppColors.textSecondary),
+          hintText: hintText,
+          hintStyle: AppText.secondary,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 16),
         ),
       ),
     );

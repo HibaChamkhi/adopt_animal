@@ -22,6 +22,10 @@ class AuthRepositoryImpl implements AuthRepository {
       remoteDataSource.getCurrentUId();
 
   @override
+  Future<UserEntity> getCurrentUser() async =>
+      remoteDataSource.getCurrentUser();
+
+  @override
   Stream<List<UserEntity>> getSingleUser(UserEntity user) =>
       remoteDataSource.getSingleUser(user);
 
