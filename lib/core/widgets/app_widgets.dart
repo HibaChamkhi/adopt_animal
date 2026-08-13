@@ -1,5 +1,27 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../app_theme.dart';
+
+/// Renders a base64 image (stored in Firestore) when present, otherwise the
+/// striped placeholder. Lets photos work without Firebase Storage.
+Widget photoOrPlaceholder(String? base64, String label,
+    {double radius = 14, double? height}) {
+  if (base64 != null && base64.isNotEmpty) {
+    try {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.memory(
+          base64Decode(base64),
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: height,
+          gaplessPlayback: true,
+        ),
+      );
+    } catch (_) {}
+  }
+  return StripedPlaceholder(label: label, borderRadius: radius, height: height);
+}
 
 /// Diagonal-striped image placeholder used across the app until real photos load.
 class StripedPlaceholder extends StatelessWidget {
@@ -292,6 +314,7 @@ class PetCard extends StatelessWidget {
   final String? city;
   final String placeholderLabel;
   final String? imageUrl;
+  final String? imageBase64;
   final bool isFavorite;
   final VoidCallback? onFavorite;
   final VoidCallback? onTap;
@@ -303,6 +326,7 @@ class PetCard extends StatelessWidget {
     this.city,
     this.placeholderLabel = "photo",
     this.imageUrl,
+    this.imageBase64,
     this.isFavorite = false,
     this.onFavorite,
     this.onTap,
@@ -328,18 +352,20 @@ class PetCard extends StatelessWidget {
               children: [
                 AspectRatio(
                   aspectRatio: 1.15,
-                  child: (imageUrl != null && imageUrl!.isNotEmpty)
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Image.network(
-                            imageUrl!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            errorBuilder: (_, __, ___) =>
-                                StripedPlaceholder(label: placeholderLabel, borderRadius: 14),
-                          ),
-                        )
-                      : StripedPlaceholder(label: placeholderLabel, borderRadius: 14),
+                  child: (imageBase64 != null && imageBase64!.isNotEmpty)
+                      ? photoOrPlaceholder(imageBase64, placeholderLabel, radius: 14)
+                      : (imageUrl != null && imageUrl!.isNotEmpty)
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Image.network(
+                                imageUrl!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                errorBuilder: (_, __, ___) =>
+                                    StripedPlaceholder(label: placeholderLabel, borderRadius: 14),
+                              ),
+                            )
+                          : StripedPlaceholder(label: placeholderLabel, borderRadius: 14),
                 ),
                 Positioned(
                   top: 8,

@@ -20,6 +20,7 @@ class Animal {
   final String id;
   final String ownerId;
   final String photoUrl;
+  final String photoBase64;
   bool favorite;
 
   Animal({
@@ -42,6 +43,7 @@ class Animal {
     this.id = "",
     this.ownerId = "",
     this.photoUrl = "",
+    this.photoBase64 = "",
     this.favorite = false,
   });
 }
@@ -87,6 +89,7 @@ final List<Animal> sampleAnimals = [
 
 
 class Product {
+  final String id;
   final String name;
   final String category; // Food / Toys / Accessories / Health
   final String photoLabel;
@@ -105,6 +108,7 @@ class Product {
     required this.rating,
     required this.reviews,
     this.inStock = true,
+    this.id = "",
   });
 }
 
@@ -133,6 +137,7 @@ final List<Product> sampleProducts = [
 
 
 class Vet {
+  final String id;
   final String name;
   final String specialty;
   final String clinic;
@@ -165,6 +170,7 @@ class Vet {
     required this.address,
     required this.hours,
     this.phone = "+201001112222",
+    this.id = "",
   });
 
   bool get availableToday => availability.toLowerCase().contains("today");
@@ -222,5 +228,42 @@ Animal animalFromMap(String id, Map<String, dynamic> m) {
       if (urls is List && urls.isNotEmpty) return urls.first as String;
       return (m['photoUrl'] ?? '') as String;
     }(),
+    photoBase64: (m['photoBase64'] ?? '') as String,
+  );
+}
+
+
+Product productFromMap(Map<String, dynamic> m, {String id = ''}) {
+  return Product(
+    id: id,
+    name: (m['name'] ?? '') as String,
+    category: (m['category'] ?? 'Food') as String,
+    photoLabel: (m['photoLabel'] ?? 'product') as String,
+    description: (m['description'] ?? '') as String,
+    price: ((m['price'] ?? 0) as num).toInt(),
+    rating: ((m['rating'] ?? 0) as num).toDouble(),
+    reviews: ((m['reviews'] ?? 0) as num).toInt(),
+    inStock: (m['inStock'] ?? true) as bool,
+  );
+}
+
+Vet vetFromMap(Map<String, dynamic> m, {String id = ''}) {
+  return Vet(
+    id: id,
+    name: (m['name'] ?? '') as String,
+    specialty: (m['specialty'] ?? '') as String,
+    clinic: (m['clinic'] ?? '') as String,
+    city: (m['city'] ?? '') as String,
+    initials: (m['initials'] ?? '?') as String,
+    category: (m['category'] ?? 'Canine') as String,
+    rating: ((m['rating'] ?? 0) as num).toDouble(),
+    availability: (m['availability'] ?? 'Available today') as String,
+    about: (m['about'] ?? '') as String,
+    experience: (m['experience'] ?? '') as String,
+    patients: (m['patients'] ?? '') as String,
+    price: ((m['price'] ?? 0) as num).toInt(),
+    address: (m['address'] ?? '') as String,
+    hours: (m['hours'] ?? '') as String,
+    phone: (m['phone'] ?? '') as String,
   );
 }

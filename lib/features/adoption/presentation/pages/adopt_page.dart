@@ -7,6 +7,7 @@ import 'package:adopt_animal/core/widgets/app_widgets.dart';
 import 'package:adopt_animal/features/adoption/data/animal_repository.dart';
 import 'package:adopt_animal/features/adoption/presentation/pages/animal_detail_page.dart';
 import 'package:adopt_animal/features/adoption/presentation/pages/filter_sheet.dart';
+import 'package:adopt_animal/features/adoption/presentation/pages/list_for_adoption_page.dart';
 
 class AdoptPage extends StatefulWidget {
   const AdoptPage({super.key});
@@ -21,6 +22,7 @@ class _AdoptPageState extends State<AdoptPage> {
   final _repo = AnimalRepository();
   final AnimalFilters _filters = AnimalFilters();
   List<Animal> _lastSource = const [];
+  String _query = "";
 
   @override
   void initState() {
@@ -53,13 +55,22 @@ class _AdoptPageState extends State<AdoptPage> {
       default:
         out = list;
     }
-    return applyAnimalFilters(
+    var res = applyAnimalFilters(
       out,
       species: _filters.species,
       age: _filters.age,
       size: _filters.size,
       city: _filters.city,
     );
+    final q = _query.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      res = res
+          .where((a) =>
+              a.name.toLowerCase().contains(q) ||
+              a.breed.toLowerCase().contains(q))
+          .toList();
+    }
+    return res;
   }
 
   Future<void> _openFilters(List<Animal> source) async {
@@ -87,15 +98,52 @@ class _AdoptPageState extends State<AdoptPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Adopt", style: AppText.heading),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Adopt", style: AppText.heading),
+                GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ListForAdoptionPage()),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AppIcon(AppIcons.add, size: 18, color: Colors.white),
+                        SizedBox(width: 6),
+                        Text("List a pet",
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             Row(
               children: [
-                const Expanded(child: AppSearchField(hint: "Search breed, name...")),
+                Expanded(
+                  child: AppSearchField(
+                    hint: "Search breed, name...",
+                    onChanged: (v) => setState(() => _query = v),
+                  ),
+                ),
                 const SizedBox(width: 12),
                 GestureDetector(
                   onTap: () => _openFilters(
-                      (_lastSource.isNotEmpty) ? _lastSource : sampleAnimals),
+                      _lastSource),
                   child: Container(
                     width: 54,
                     height: 54,
@@ -131,18 +179,17 @@ class _AdoptPageState extends State<AdoptPage> {
               child: StreamBuilder<List<Animal>>(
                 stream: _repo.watchAvailable(),
                 builder: (context, snap) {
-                  // Use live Firestore data when present; otherwise fall back
-                  // to the sample catalog so the grid is never empty.
-                  final source = (snap.hasData && snap.data!.isNotEmpty)
-                      ? snap.data!
-                      : sampleAnimals;
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final source = snap.data ?? const <Animal>[];
                   _lastSource = source;
                   final animals = _applyCategory(source);
                   if (animals.isEmpty) {
                     return const EmptyState(
                       icon: Icons.pets,
-                      title: "No animals here yet",
-                      subtitle: "Try a different category.",
+                      title: "No animals yet",
+                      subtitle: "Listings will appear here once they're added.",
                     );
                   }
                   return GridView.builder(
@@ -162,6 +209,7 @@ class _AdoptPageState extends State<AdoptPage> {
                         city: a.city,
                         placeholderLabel: a.photoLabel,
                         imageUrl: a.photoUrl,
+                        imageBase64: a.photoBase64,
                         isFavorite: favorites.contains(a.name),
                         onFavorite: () => favorites.toggle(a.name),
                         onTap: () => Navigator.push(

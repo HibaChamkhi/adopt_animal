@@ -21,14 +21,6 @@ class _VetChatPageState extends State<VetChatPage> {
   late final String _chatId =
       _repo.chatIdFor(widget.vet.name.replaceAll(RegExp(r'\s+'), '_'));
 
-  final List<ChatMessage> _sample = [
-    ChatMessage(me: true, text: "Hi doctor! Luna has been scratching her ear a lot since yesterday."),
-    ChatMessage(me: true, text: "ear photo", imageUrl: "", time: "10:42"),
-    ChatMessage(me: false, text: "Thanks for the photo. It looks like mild irritation — is there any discharge or odor?"),
-    ChatMessage(me: true, text: "No odor, just redness."),
-    ChatMessage(me: false, text: "Keep it dry and don't let her scratch. If it persists 2 more days, book a visit and I'll take a look."),
-  ];
-
   @override
   void dispose() {
     _controller.dispose();
@@ -36,11 +28,19 @@ class _VetChatPageState extends State<VetChatPage> {
     super.dispose();
   }
 
-  void _send() {
+  Future<void> _send() async {
     final t = _controller.text.trim();
     if (t.isEmpty) return;
     _controller.clear();
-    _repo.send(_chatId, t);
+    try {
+      await _repo.send(_chatId, t);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't send — try again")),
+        );
+      }
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
         _scroll.animateTo(_scroll.position.maxScrollExtent,
@@ -61,7 +61,22 @@ class _VetChatPageState extends State<VetChatPage> {
               child: StreamBuilder<List<ChatMessage>>(
                 stream: _repo.watch(_chatId),
                 builder: (context, snap) {
-                  final msgs = (snap.hasData && snap.data!.isNotEmpty) ? snap.data! : _sample;
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final msgs = snap.data ?? const <ChatMessage>[];
+                  if (msgs.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Text(
+                          "No messages yet.\nSay hello to ${widget.vet.name.split(' ').first}.",
+                          textAlign: TextAlign.center,
+                          style: AppText.secondary,
+                        ),
+                      ),
+                    );
+                  }
                   return ListView(
                     controller: _scroll,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),

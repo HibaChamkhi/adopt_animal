@@ -3,12 +3,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class AdoptionRequest {
   final String id;
+  final String animalId;
   final String adopterName;
   final String animalName;
   final String message;
   final String status;
   AdoptionRequest({
     required this.id,
+    required this.animalId,
     required this.adopterName,
     required this.animalName,
     required this.message,
@@ -28,6 +30,7 @@ class AdoptionRequestRepository {
     required String ownerName,
     required String message,
     required Map<String, bool> home,
+    String animalId = '',
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     await _col.add({
@@ -35,6 +38,7 @@ class AdoptionRequestRepository {
       'adopterName': user?.displayName ?? 'You',
       'ownerId': ownerId,
       'ownerName': ownerName,
+      'animalId': animalId,
       'animalName': animalName,
       'breed': breed,
       'message': message,
@@ -50,11 +54,16 @@ class AdoptionRequestRepository {
           final m = d.data();
           return AdoptionRequest(
             id: d.id,
+            animalId: (m['animalId'] ?? '') as String,
             adopterName: (m['adopterName'] ?? 'Someone') as String,
             animalName: (m['animalName'] ?? '') as String,
             message: (m['message'] ?? '') as String,
             status: (m['status'] ?? 'pending') as String,
           );
         }).toList());
+  }
+
+  Future<void> updateStatus(String id, String status) async {
+    await _col.doc(id).update({'status': status});
   }
 }

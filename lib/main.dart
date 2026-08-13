@@ -5,7 +5,6 @@ import 'features/auth/presentation/cubit/auth/auth_cubit.dart';
 import 'features/auth/presentation/pages/signIn_page.dart';
 import 'features/auth/presentation/pages/signUp_page.dart';
 import 'features/auth/presentation/pages/splash_screen.dart';
-import 'features/bottom_nav_bar.dart';
 import 'injection.dart' as di;
 import 'core/favorites_service.dart';
 import 'on_generate_route.dart';

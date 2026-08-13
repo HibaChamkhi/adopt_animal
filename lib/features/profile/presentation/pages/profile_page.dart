@@ -13,6 +13,12 @@ import 'package:adopt_animal/features/vet/presentation/pages/appointments_page.d
 import 'package:adopt_animal/features/adoption/presentation/pages/my_listings_page.dart';
 import 'package:adopt_animal/features/adoption/presentation/pages/saved_page.dart';
 import 'package:adopt_animal/features/shop/presentation/pages/orders_page.dart';
+import 'package:adopt_animal/core/seeder.dart';
+import 'package:adopt_animal/features/admin/presentation/pages/admin_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:adopt_animal/features/adoption/data/animal_repository.dart';
+import 'package:adopt_animal/features/shop/data/order_repository.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -25,6 +31,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String _name = "";
   String _email = "";
   String _city = "";
+  String _role = "";
 
   @override
   void initState() {
@@ -39,6 +46,7 @@ class _ProfilePageState extends State<ProfilePage> {
         _name = (u.name != null && u.name!.trim().isNotEmpty) ? u.name! : "Your profile";
         _email = u.email ?? "";
         _city = (u.city != null && u.city!.trim().isNotEmpty) ? u.city! : "";
+        _role = u.role ?? "";
       });
     }).catchError((_) {});
   }
@@ -56,6 +64,24 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _push(Widget page) =>
       Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 
+  Future<void> _seed() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Seeding Firestore...")),
+    );
+    final msg = await SeederService().seedAll();
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Seed result"),
+        content: Text(msg),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("OK")),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -70,16 +96,28 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(child: _statBox("2", "Listings")),
+                Expanded(child: _statBoxLive(_listingsCount(), "Listings")),
                 const SizedBox(width: 12),
-                Expanded(child: _statBox("4", "Saved")),
+                Expanded(child: _statBoxLive(_savedCount(), "Saved")),
                 const SizedBox(width: 12),
-                Expanded(child: _statBox("3", "Orders")),
+                Expanded(child: _statBoxLive(_ordersCount(), "Orders")),
               ],
             ),
             const SizedBox(height: 20),
             CardGroup(
               children: [
+                SettingsRow(
+                  leading: const Icon(Icons.cloud_upload_outlined, size: 22, color: AppColors.primary),
+                  title: "Seed test data (dev)",
+                  onTap: _seed,
+                ),
+                if (_role == 'admin')
+                  SettingsRow(
+                    leading: const Icon(Icons.admin_panel_settings_outlined,
+                        size: 22, color: AppColors.primary),
+                    title: "Admin — manage catalog",
+                    onTap: () => _push(const AdminPage()),
+                  ),
                 SettingsRow(
                   leading: const AppIcon(AppIcons.pets, size: 22, color: AppColors.primary),
                   title: "My listings & requests",
@@ -189,6 +227,28 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
+    );
+  }
+
+  String get _uid => FirebaseAuth.instance.currentUser?.uid ?? "";
+
+  Stream<int> _listingsCount() =>
+      AnimalRepository().watchMyListings(_uid).map((l) => l.length);
+
+  Stream<int> _ordersCount() =>
+      OrderRepository().watchMyOrders(_uid).map((l) => l.length);
+
+  Stream<int> _savedCount() => FirebaseFirestore.instance
+      .collection('users')
+      .doc(_uid)
+      .collection('favorites')
+      .snapshots()
+      .map((s) => s.docs.length);
+
+  Widget _statBoxLive(Stream<int> stream, String label) {
+    return StreamBuilder<int>(
+      stream: stream,
+      builder: (context, snap) => _statBox("${snap.data ?? 0}", label),
     );
   }
 

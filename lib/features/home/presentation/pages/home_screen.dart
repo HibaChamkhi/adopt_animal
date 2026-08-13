@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:adopt_animal/core/app_icons.dart';
 import 'package:adopt_animal/core/app_theme.dart';
 import 'package:adopt_animal/core/sample_data.dart';
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:adopt_animal/features/adoption/data/animal_repository.dart';
+import 'package:adopt_animal/features/adoption/data/adoption_request_repository.dart';
+import 'package:adopt_animal/features/vet/data/appointment_repository.dart';
 import 'package:adopt_animal/core/favorites_service.dart';
 import 'package:adopt_animal/core/widgets/app_widgets.dart';
 import 'package:adopt_animal/injection.dart' as di;
@@ -23,11 +28,29 @@ class _HomeScreenState extends State<HomeScreen> {
   String _name = "";
   int _category = 0;
   final _categories = const ["All", "Dogs", "Cats", "Birds"];
+  final _animalRepo = AnimalRepository();
+  int _pendingReq = 0;
+  int _pendingAppt = 0;
+  int get _unread => _pendingReq + _pendingAppt;
+  final List<StreamSubscription> _subs = [];
 
   @override
   void initState() {
     super.initState();
     favorites.addListener(_onFav);
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? "";
+    _subs.add(AdoptionRequestRepository().watchForOwner(uid).listen((v) {
+      if (mounted) {
+        setState(() => _pendingReq =
+            v.where((r) => r.status.toLowerCase() == 'pending').length);
+      }
+    }));
+    _subs.add(AppointmentRepository().watchMine(uid).listen((v) {
+      if (mounted) {
+        setState(() => _pendingAppt =
+            v.where((a) => a.status.toLowerCase() == 'requested').length);
+      }
+    }));
     di.sl<GetCurrentUserUseCase>().call().then((UserEntity u) {
       if (!mounted) return;
       final n = u.name;
@@ -41,6 +64,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     favorites.removeListener(_onFav);
+    for (final s in _subs) {
+      s.cancel();
+    }
     super.dispose();
   }
 
@@ -102,13 +128,42 @@ class _HomeScreenState extends State<HomeScreen> {
               onAction: () => widget.onSelectTab?.call(1),
             ),
             const SizedBox(height: 14),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _petCard(sampleAnimals[0])),
-                const SizedBox(width: 14),
-                Expanded(child: _petCard(sampleAnimals[1])),
-              ],
+            StreamBuilder<List<Animal>>(
+              stream: _animalRepo.watchAvailable(),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 200,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                var animals = snap.data ?? <Animal>[];
+                if (_category != 0) {
+                  const speciesByIndex = {1: 'dog', 2: 'cat', 3: 'bird'};
+                  animals = animals
+                      .where((a) => a.species == speciesByIndex[_category])
+                      .toList();
+                }
+                if (animals.isEmpty) {
+                  return const EmptyState(
+                    icon: Icons.pets,
+                    title: "No animals yet",
+                    subtitle:
+                        "Adoption listings will appear here once they're added.",
+                  );
+                }
+                final shown = animals.take(2).toList();
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (int i = 0; i < shown.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 14),
+                      Expanded(child: _petCard(shown[i])),
+                    ],
+                    if (shown.length == 1) const Expanded(child: SizedBox()),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 24),
             const SectionHeader(title: "Pet care"),
@@ -146,6 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
       subtitle: "${a.breed} · ${a.age}",
       placeholderLabel: a.photoLabel,
       imageUrl: a.photoUrl,
+      imageBase64: a.photoBase64,
       isFavorite: favorites.contains(a.name),
       onFavorite: () => favorites.toggle(a.name),
       onTap: () => Navigator.push(
@@ -171,15 +227,26 @@ class _HomeScreenState extends State<HomeScreen> {
           clipBehavior: Clip.none,
           children: [
             const AppIcon(AppIcons.notifications, size: 24, color: AppColors.primaryDark),
-            Positioned(
-              right: -1,
-              top: -1,
-              child: Container(
-                width: 9,
-                height: 9,
-                decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+            if (_unread > 0)
+              Positioned(
+                right: -5,
+                top: -5,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  constraints:
+                      const BoxConstraints(minWidth: 18, minHeight: 18),
+                  decoration: const BoxDecoration(
+                      color: AppColors.primary, shape: BoxShape.circle),
+                  child: Text(
+                    _unread > 9 ? "9+" : "$_unread",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ),
               ),
-            ),
           ],
         ),
       ),

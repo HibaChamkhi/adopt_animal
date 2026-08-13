@@ -25,6 +25,7 @@ class _AdoptionRequestPageState extends State<AdoptionRequestPage> {
     final a = widget.animal;
     try {
       await AdoptionRequestRepository().send(
+        animalId: a.id,
         animalName: a.name,
         breed: a.breed,
         ownerId: a.ownerId,

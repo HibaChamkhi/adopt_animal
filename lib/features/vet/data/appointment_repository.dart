@@ -60,4 +60,18 @@ class AppointmentRepository {
           );
         }).toList());
   }
+
+  Future<void> updateStatus(String id, String status) async {
+    await _col.doc(id).update({'status': status});
+  }
+
+  Future<void> reschedule(String id,
+      {required String day, required String month, required String time}) async {
+    await _col.doc(id).update({
+      'day': day,
+      'month': month,
+      'time': time,
+      'status': 'requested',
+    });
+  }
 }

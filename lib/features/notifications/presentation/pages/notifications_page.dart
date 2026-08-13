@@ -1,7 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:adopt_animal/core/app_icons.dart';
 import 'package:adopt_animal/core/app_theme.dart';
+import 'package:adopt_animal/core/widgets/app_widgets.dart';
 import 'package:adopt_animal/core/widgets/settings_widgets.dart';
+import 'package:adopt_animal/features/adoption/data/adoption_request_repository.dart';
+import 'package:adopt_animal/features/vet/data/appointment_repository.dart';
+import 'package:adopt_animal/features/shop/data/order_repository.dart';
 
 class _Notif {
   final String icon, boldPart, rest, time;
@@ -17,24 +24,82 @@ class NotificationsPage extends StatefulWidget {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
-  late List<_Notif> _items = [
-    _Notif(AppIcons.pets, "Adoption request accepted! ", "Omar approved your request for Luna.", "5 min ago", unread: true),
-    _Notif(AppIcons.chat, "Dr. Ahmed ", "replied to your message.", "22 min ago", unread: true),
-    _Notif(AppIcons.shipping, "Order #1042 ", "has shipped — arriving Thursday.", "2 h ago"),
-    _Notif(AppIcons.event, "Reminder: ", "appointment with Dr. Ahmed tomorrow at 3:00 PM.", "Yesterday"),
-    _Notif(AppIcons.favorite, "Milo, ", "a cat you saved, was just adopted.", "2 days ago"),
-  ];
+  final String _uid = FirebaseAuth.instance.currentUser?.uid ?? "";
+  List<AdoptionRequest> _requests = [];
+  List<Appointment> _appts = [];
+  List<OrderSummary> _orders = [];
+  final List<StreamSubscription> _subs = [];
+  bool _ready = false;
 
-  void _markAllRead() {
-    setState(() {
-      _items = _items
-          .map((n) => _Notif(n.icon, n.boldPart, n.rest, n.time, unread: false))
-          .toList();
-    });
+  @override
+  void initState() {
+    super.initState();
+    _subs.add(AdoptionRequestRepository().watchForOwner(_uid).listen((v) {
+      if (mounted) setState(() { _requests = v; _ready = true; });
+    }));
+    _subs.add(AppointmentRepository().watchMine(_uid).listen((v) {
+      if (mounted) setState(() { _appts = v; _ready = true; });
+    }));
+    _subs.add(OrderRepository().watchMyOrders(_uid).listen((v) {
+      if (mounted) setState(() { _orders = v; _ready = true; });
+    }));
+  }
+
+  @override
+  void dispose() {
+    for (final s in _subs) {
+      s.cancel();
+    }
+    super.dispose();
+  }
+
+  List<_Notif> _build() {
+    final items = <_Notif>[];
+
+    for (final r in _requests) {
+      final s = r.status.toLowerCase();
+      items.add(_Notif(
+        AppIcons.pets,
+        "${r.adopterName} ",
+        "requested to adopt ${r.animalName}.",
+        s == 'pending'
+            ? "Adoption request · awaiting your response"
+            : "Adoption request · ${r.status}",
+        unread: s == 'pending',
+      ));
+    }
+
+    for (final a in _appts) {
+      final s = a.status.toLowerCase();
+      if (s == 'cancelled') continue;
+      final confirmed = s == 'confirmed';
+      items.add(_Notif(
+        AppIcons.event,
+        "${a.vetName} ",
+        confirmed
+            ? "confirmed your appointment."
+            : "— appointment awaiting confirmation.",
+        "${a.day} ${a.month} · ${a.time}",
+        unread: !confirmed,
+      ));
+    }
+
+    for (final o in _orders) {
+      items.add(_Notif(
+        AppIcons.shipping,
+        "Order ",
+        "${o.status} — ${o.itemCount} item${o.itemCount == 1 ? '' : 's'}, EGP ${o.total}.",
+        "Order #${o.id.substring(0, o.id.length < 6 ? o.id.length : 6)}",
+        unread: o.status.toLowerCase() == 'pending',
+      ));
+    }
+
+    return items;
   }
 
   @override
   Widget build(BuildContext context) {
+    final items = _build();
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -44,39 +109,39 @@ class _NotificationsPageState extends State<NotificationsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                          child: const AppIcon(AppIcons.arrowBack, size: 20, color: AppColors.primaryDark),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      const Text("Notifications", style: AppText.title),
-                    ],
-                  ),
                   GestureDetector(
-                    onTap: _markAllRead,
-                    child: const Text("Mark all read",
-                        style: TextStyle(
-                            color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 14)),
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: const BoxDecoration(
+                          color: Colors.white, shape: BoxShape.circle),
+                      child: const AppIcon(AppIcons.arrowBack,
+                          size: 20, color: AppColors.primaryDark),
+                    ),
                   ),
+                  const SizedBox(width: 14),
+                  const Text("Notifications", style: AppText.title),
                 ],
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  itemCount: _items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, i) => _card(_items[i]),
-                ),
+                child: !_ready
+                    ? const Center(child: CircularProgressIndicator())
+                    : items.isEmpty
+                        ? const EmptyState(
+                            icon: Icons.notifications_none,
+                            title: "No notifications yet",
+                            subtitle:
+                                "Adoption requests, appointments and orders will show up here.",
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            itemCount: items.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, i) => _card(items[i]),
+                          ),
               ),
             ],
           ),
@@ -105,11 +170,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text.rich(TextSpan(children: [
-                  TextSpan(text: n.boldPart,
+                  TextSpan(
+                      text: n.boldPart,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 14.5, color: AppColors.primaryDark)),
-                  TextSpan(text: n.rest,
-                      style: const TextStyle(fontSize: 14.5, color: AppColors.primaryDark, height: 1.3)),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14.5,
+                          color: AppColors.primaryDark)),
+                  TextSpan(
+                      text: n.rest,
+                      style: const TextStyle(
+                          fontSize: 14.5,
+                          color: AppColors.primaryDark,
+                          height: 1.3)),
                 ])),
                 const SizedBox(height: 4),
                 Text(n.time, style: AppText.secondary),
@@ -119,8 +191,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
           if (n.unread)
             Container(
               margin: const EdgeInsets.only(left: 8, top: 4),
-              width: 9, height: 9,
-              decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+              width: 9,
+              height: 9,
+              decoration: const BoxDecoration(
+                  color: AppColors.primary, shape: BoxShape.circle),
             ),
         ],
       ),

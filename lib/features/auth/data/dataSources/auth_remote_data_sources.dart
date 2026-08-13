@@ -41,18 +41,43 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<void> signIn(UserEntity user) async {
-    await auth.signInWithEmailAndPassword(
-        email: user.email!, password: user.password!);
+    // firebase_auth (pigeon PigeonUserDetails cast bug) can throw a type-cast
+    // error *after* sign-in actually succeeds. Only real FirebaseAuthExceptions
+    // (wrong password, user-not-found) should surface as failures.
+    try {
+      await auth.signInWithEmailAndPassword(
+          email: user.email!, password: user.password!);
+    } on FirebaseAuthException {
+      rethrow;
+    } catch (_) {
+      // pigeon cast bug — sign-in likely succeeded; fall through
+    }
+
+    // Back-fill a missing profile document so older accounts (Auth user exists
+    // but no users/{uid} doc) self-heal on next login.
+    if (auth.currentUser != null) {
+      await getCreateCurrentUser(user);
+    }
   }
 
   @override
   Future<void> signUp(UserEntity user) async {
-    await auth
-        .createUserWithEmailAndPassword(
-            email: user.email!, password: user.password!)
-        .then((value) {
-       getCreateCurrentUser(user);
-    });
+    // Do NOT chain the Firestore write with .then(): the pigeon cast bug makes
+    // createUserWithEmailAndPassword "throw" even though the Auth account was
+    // created, which skips the callback and leaves the user with no profile
+    // document. Instead, swallow the non-auth cast error and write explicitly.
+    try {
+      await auth.createUserWithEmailAndPassword(
+          email: user.email!, password: user.password!);
+    } on FirebaseAuthException {
+      rethrow; // real auth failure (email-already-in-use, weak-password, etc.)
+    } catch (_) {
+      // pigeon cast bug — the account may still have been created; fall through
+    }
+
+    if (auth.currentUser != null) {
+      await getCreateCurrentUser(user);
+    }
   }
 
   @override
@@ -73,26 +98,24 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
     final uid = await getCurrentUId();
 
-    userCollection.doc(uid).get().then((userDoc) {
-      if (!userDoc.exists) {
-        final newUser = UserModel(
-          email: user.email,
-          uid: uid,
-          status: user.status,
-          profileUrl: user.profileUrl,
-          name: user.name,
-          role: user.role ?? 'adopter',
-          phone: user.phone,
-          city: user.city,
-          bio: user.bio,
-        ).toDocument();
+    // Awaited throughout so callers actually block on the write completing.
+    final userDoc = await userCollection.doc(uid).get();
 
-        userCollection.doc(uid).set(newUser);
-      } else {
-        print("User already exists");
-        return;
-      }
-    });
+    if (!userDoc.exists) {
+      final newUser = UserModel(
+        email: user.email,
+        uid: uid,
+        status: user.status,
+        profileUrl: user.profileUrl,
+        name: user.name,
+        role: user.role ?? 'adopter',
+        phone: user.phone,
+        city: user.city,
+        bio: user.bio,
+      ).toDocument();
+
+      await userCollection.doc(uid).set(newUser);
+    }
   }
 
   @override
@@ -144,8 +167,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<void> googleAuth() async {
-    final userCollection = fireStore.collection("users");
-
     try {
       final GoogleSignInAccount? account = await googleSignIn.signIn();
 
@@ -159,7 +180,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
       final information = (await auth.signInWithCredential(credential)).user;
 
-      getCreateCurrentUser(UserEntity(
+      await getCreateCurrentUser(UserEntity(
         name: information!.displayName,
         email: information.email,
         status: "",

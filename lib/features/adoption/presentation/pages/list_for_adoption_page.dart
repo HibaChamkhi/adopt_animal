@@ -1,37 +1,94 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:adopt_animal/core/app_icons.dart';
 import 'package:adopt_animal/core/app_theme.dart';
 import 'package:adopt_animal/core/widgets/app_widgets.dart';
 import 'package:adopt_animal/core/widgets/settings_widgets.dart';
 import 'package:adopt_animal/features/adoption/data/animal_repository.dart';
-import 'package:adopt_animal/core/storage_service.dart';
+import 'package:adopt_animal/core/sample_data.dart';
 
 class ListForAdoptionPage extends StatefulWidget {
-  const ListForAdoptionPage({super.key});
+  final Animal? existing;
+  const ListForAdoptionPage({super.key, this.existing});
 
   @override
   State<ListForAdoptionPage> createState() => _ListForAdoptionPageState();
 }
 
 class _ListForAdoptionPageState extends State<ListForAdoptionPage> {
+  int _step = 0;
   int _species = 0;
   int _gender = 0;
+  int _size = 1;
+  String _breed = "";
+
   final _species_ = const ["Dog", "Cat", "Bird", "Other"];
+  final _sizes = const ["Small", "Medium", "Large"];
+  final Map<String, List<String>> _breeds = const {
+    "Dog": [
+      "Labrador", "Beagle", "German Shepherd", "Golden Retriever", "Poodle",
+      "Bulldog", "Husky", "Chihuahua", "Mixed breed", "Other"
+    ],
+    "Cat": [
+      "Persian", "Siamese", "Tabby", "Maine Coon", "Bengal", "Sphynx",
+      "British Shorthair", "Mixed breed", "Other"
+    ],
+    "Bird": [
+      "Cockatiel", "Budgerigar", "Canary", "Lovebird", "Parrot", "Finch", "Other"
+    ],
+    "Other": ["Rabbit", "Hamster", "Guinea Pig", "Turtle", "Other"],
+  };
+
   final _name = TextEditingController();
   final _age = TextEditingController();
+  final _weight = TextEditingController();
+  final _city = TextEditingController();
+  final _desc = TextEditingController();
+  final _health = TextEditingController();
   final List<File> _photos = [];
+  String _existingBase64 = "";
   bool _posting = false;
+
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    if (e != null) {
+      _name.text = e.name;
+      _age.text = e.age;
+      _weight.text = e.weight == "-" ? "" : e.weight;
+      _city.text = e.city;
+      _desc.text = e.description;
+      _health.text = e.health;
+      final sp =
+          _species_.indexWhere((s) => s.toLowerCase() == e.species.toLowerCase());
+      if (sp >= 0) _species = sp;
+      final sz =
+          _sizes.indexWhere((s) => s.toLowerCase() == e.size.toLowerCase());
+      if (sz >= 0) _size = sz;
+      _gender = e.gender.toLowerCase() == "male" ? 1 : 0;
+      _breed = e.breed;
+      _existingBase64 = e.photoBase64;
+    }
+  }
 
   @override
   void dispose() {
     _name.dispose();
     _age.dispose();
+    _weight.dispose();
+    _city.dispose();
+    _desc.dispose();
+    _health.dispose();
     super.dispose();
   }
+
+  static const _titles = ["Photos & basics", "Details", "About & post"];
 
   @override
   Widget build(BuildContext context) {
@@ -43,63 +100,21 @@ class _ListForAdoptionPageState extends State<ListForAdoptionPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SubPageHeader("List for adoption"),
+              SubPageHeader(_isEdit ? "Edit listing" : "List for adoption"),
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(child: _progress(true)),
-                  const SizedBox(width: 6),
-                  Expanded(child: _progress(false)),
-                  const SizedBox(width: 6),
-                  Expanded(child: _progress(false)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              const Text("Step 1 of 3 · Photos & basics", style: AppText.secondary),
-              const SizedBox(height: 20),
-              const Text("Photos", style: AppText.secondary),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  for (int i = 0; i < _photos.length; i++) _preview(i),
-                  _addPhoto(),
-                ],
-              ),
-              const SizedBox(height: 22),
-              const Text("Species", style: AppText.secondary),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  for (int i = 0; i < _species_.length; i++) ...[
-                    SelectableChip(
-                      label: _species_[i],
-                      selected: _species == i,
-                      onTap: () => setState(() => _species = i),
-                    ),
-                    if (i != _species_.length - 1) const SizedBox(width: 10),
+                  for (int i = 0; i < 3; i++) ...[
+                    Expanded(child: _progress(i <= _step)),
+                    if (i < 2) const SizedBox(width: 6),
                   ],
                 ],
               ),
-              const SizedBox(height: 22),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _labeledField("Name", _name, "Bella")),
-                  const SizedBox(width: 14),
-                  Expanded(child: _breedField()),
-                ],
-              ),
-              const SizedBox(height: 18),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _labeledField("Age", _age, "3 years")),
-                  const SizedBox(width: 14),
-                  Expanded(child: _genderField()),
-                ],
-              ),
+              const SizedBox(height: 10),
+              Text("Step ${_step + 1} of 3 · ${_titles[_step]}",
+                  style: AppText.secondary),
+              const SizedBox(height: 20),
+              _stepContent(),
             ],
           ),
         ),
@@ -107,12 +122,177 @@ class _ListForAdoptionPageState extends State<ListForAdoptionPage> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-          child: PrimaryButton(
-            label: "Post listing",
-            onTap: _post,
+          child: Row(
+            children: [
+              if (_step > 0) ...[
+                Expanded(
+                  child: SizedBox(
+                    height: 56,
+                    child: OutlinedButton(
+                      onPressed: _posting ? null : () => setState(() => _step--),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.stroke),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28)),
+                      ),
+                      child: const Text("Back",
+                          style: TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: PrimaryButton(
+                  label: _step < 2
+                      ? "Next"
+                      : (_posting
+                          ? (_isEdit ? "Saving..." : "Posting...")
+                          : (_isEdit ? "Save changes" : "Post listing")),
+                  onTap: _posting
+                      ? null
+                      : (_step < 2 ? _goNext : _post),
+                ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  void _goNext() {
+    if (_step == 0 && _name.text.trim().isEmpty) {
+      _snack("Please enter a name");
+      return;
+    }
+    setState(() => _step++);
+  }
+
+  void _snack(String m) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+
+  Widget _stepContent() {
+    switch (_step) {
+      case 0:
+        return _stepBasics();
+      case 1:
+        return _stepDetails();
+      default:
+        return _stepAbout();
+    }
+  }
+
+  Widget _stepBasics() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Photos", style: AppText.secondary),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (int i = 0; i < _photos.length; i++) _preview(i),
+            if (_photos.isEmpty && _existingBase64.isNotEmpty) _existingPreview(),
+            _addPhoto(),
+          ],
+        ),
+        const SizedBox(height: 22),
+        const Text("Species", style: AppText.secondary),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            for (int i = 0; i < _species_.length; i++) ...[
+              SelectableChip(
+                label: _species_[i],
+                selected: _species == i,
+                onTap: () => setState(() {
+                  _species = i;
+                  final list = _breeds[_species_[i]] ?? const [];
+                  if (!list.contains(_breed)) _breed = "";
+                }),
+              ),
+              if (i != _species_.length - 1) const SizedBox(width: 10),
+            ],
+          ],
+        ),
+        const SizedBox(height: 22),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _labeledField("Name", _name, "Bella")),
+            const SizedBox(width: 14),
+            Expanded(child: _breedField()),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox(width: 200, child: _genderField()),
+        ),
+      ],
+    );
+  }
+
+  Widget _stepDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _labeledField("Age", _age, "3 years")),
+            const SizedBox(width: 14),
+            Expanded(child: _labeledField("Weight", _weight, "12 kg")),
+          ],
+        ),
+        const SizedBox(height: 18),
+        const Text("Size", style: AppText.secondary),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            for (int i = 0; i < _sizes.length; i++) ...[
+              SelectableChip(
+                label: _sizes[i],
+                selected: _size == i,
+                onTap: () => setState(() => _size = i),
+              ),
+              if (i != _sizes.length - 1) const SizedBox(width: 10),
+            ],
+          ],
+        ),
+        const SizedBox(height: 18),
+        _labeledField("City", _city, "Cairo"),
+      ],
+    );
+  }
+
+  Widget _stepAbout() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _labeledField("Description", _desc,
+            "Friendly, house-trained, good with kids...",
+            maxLines: 4),
+        const SizedBox(height: 18),
+        _labeledField("Health", _health, "Vaccinated · Spayed"),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.neutralBg,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Text(
+            "Review: ${_name.text.trim().isEmpty ? 'Unnamed' : _name.text.trim()} · "
+            "${_species_[_species]}${_breed.isEmpty ? '' : ' · $_breed'} · "
+            "${_sizes[_size]}",
+            style: AppText.secondary,
+          ),
+        ),
+      ],
     );
   }
 
@@ -124,54 +304,66 @@ class _ListForAdoptionPageState extends State<ListForAdoptionPage> {
         ),
       );
 
-  Widget _photoThumb({required bool removable}) {
-    return SizedBox(
-      width: 80, height: 80,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const SizedBox(
-            width: 80, height: 80,
-            child: StripedPlaceholder(label: "", borderRadius: 14),
-          ),
-          if (removable)
-            Positioned(
-              top: -6, right: -6,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                child: const AppIcon(AppIcons.close, size: 12, color: Colors.white),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _pick() async {
     final picker = ImagePicker();
-    final x = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final x = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 40,
+        maxWidth: 720,
+        maxHeight: 720);
     if (x != null) setState(() => _photos.add(File(x.path)));
   }
 
   Widget _preview(int i) {
     return SizedBox(
-      width: 80, height: 80,
+      width: 80,
+      height: 80,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(14),
-            child: Image.file(_photos[i], width: 80, height: 80, fit: BoxFit.cover),
+            child: Image.file(_photos[i],
+                width: 80, height: 80, fit: BoxFit.cover),
           ),
           Positioned(
-            top: -6, right: -6,
+            top: -6,
+            right: -6,
             child: GestureDetector(
               onTap: () => setState(() => _photos.removeAt(i)),
               child: Container(
                 padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                child: const AppIcon(AppIcons.close, size: 12, color: Colors.white),
+                decoration: const BoxDecoration(
+                    color: AppColors.primary, shape: BoxShape.circle),
+                child:
+                    const AppIcon(AppIcons.close, size: 12, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _existingPreview() {
+    return SizedBox(
+      width: 80,
+      height: 80,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          photoOrPlaceholder(_existingBase64, "", radius: 14),
+          Positioned(
+            top: -6,
+            right: -6,
+            child: GestureDetector(
+              onTap: () => setState(() => _existingBase64 = ""),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                    color: AppColors.primary, shape: BoxShape.circle),
+                child:
+                    const AppIcon(AppIcons.close, size: 12, color: Colors.white),
               ),
             ),
           ),
@@ -184,22 +376,28 @@ class _ListForAdoptionPageState extends State<ListForAdoptionPage> {
     return GestureDetector(
       onTap: _pick,
       child: DottedBox(
-      child: SizedBox(
-        width: 80, height: 80,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            AppIcon(AppIcons.addPhoto, size: 24, color: AppColors.primary),
-            SizedBox(height: 4),
-            Text("Add", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 12)),
-          ],
+        child: SizedBox(
+          width: 80,
+          height: 80,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              AppIcon(AppIcons.addPhoto, size: 24, color: AppColors.primary),
+              SizedBox(height: 4),
+              Text("Add",
+                  style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12)),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 
-  Widget _labeledField(String label, TextEditingController c, String hint) {
+  Widget _labeledField(String label, TextEditingController c, String hint,
+      {int maxLines = 1}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -207,10 +405,12 @@ class _ListForAdoptionPageState extends State<ListForAdoptionPage> {
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
+          decoration: BoxDecoration(
+              color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
           child: TextField(
             controller: c,
             style: AppText.body,
+            maxLines: maxLines,
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: AppText.secondary,
@@ -223,22 +423,74 @@ class _ListForAdoptionPageState extends State<ListForAdoptionPage> {
     );
   }
 
+  Future<void> _pickBreed() async {
+    final list = _breeds[_species_[_species]] ?? const <String>[];
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Select ${_species_[_species]} breed", style: AppText.title),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final b in list)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(b, style: AppText.body),
+                      trailing: _breed == b
+                          ? const Icon(Icons.check, color: AppColors.primary)
+                          : null,
+                      onTap: () => Navigator.pop(context, b),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked != null) setState(() => _breed = picked);
+  }
+
   Widget _breedField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text("Breed", style: AppText.secondary),
         const SizedBox(height: 8),
-        Container(
-          height: 54,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text("Select...", style: AppText.secondary),
-              Icon(Icons.expand_more, color: AppColors.textSecondary),
-            ],
+        GestureDetector(
+          onTap: _pickBreed,
+          child: Container(
+            height: 54,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    _breed.isEmpty ? "Select..." : _breed,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _breed.isEmpty ? AppText.secondary : AppText.body,
+                  ),
+                ),
+                const Icon(Icons.expand_more, color: AppColors.textSecondary),
+              ],
+            ),
           ),
         ),
       ],
@@ -253,7 +505,8 @@ class _ListForAdoptionPageState extends State<ListForAdoptionPage> {
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
+          decoration: BoxDecoration(
+              color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
           child: Row(
             children: [
               _genderOpt("Female", 0),
@@ -292,29 +545,66 @@ class _ListForAdoptionPageState extends State<ListForAdoptionPage> {
     setState(() => _posting = true);
     final species = _species_[_species].toLowerCase();
     try {
-      List<String> urls = [];
+      String photoBase64 = _isEdit ? _existingBase64 : "";
       if (_photos.isNotEmpty) {
-        final uid = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
-        urls = await StorageService().uploadAnimalPhotos(_photos, uid);
+        try {
+          final bytes = await _photos.first.readAsBytes();
+          if (bytes.lengthInBytes <= 700 * 1024) {
+            photoBase64 = base64Encode(bytes);
+          }
+        } catch (_) {}
       }
-      await AnimalRepository().addAnimal(
-        name: _name.text.trim().isEmpty ? "Unnamed" : _name.text.trim(),
-        species: species,
-        breed: _species_[_species],
-        age: _age.text.trim().isEmpty ? "-" : _age.text.trim(),
-        gender: _gender == 0 ? "Female" : "Male",
-        photoUrls: urls,
-      );
+      final name = _name.text.trim().isEmpty ? "Unnamed" : _name.text.trim();
+      final breed = _breed.isEmpty ? _species_[_species] : _breed;
+      final age = _age.text.trim().isEmpty ? "-" : _age.text.trim();
+      final weight = _weight.text.trim().isEmpty ? "-" : _weight.text.trim();
+      final city = _city.text.trim().isEmpty ? "Cairo" : _city.text.trim();
+      final gender = _gender == 0 ? "Female" : "Male";
+      final size = _sizes[_size];
+      final desc = _desc.text.trim();
+      final health = _health.text.trim();
+
+      if (_isEdit) {
+        await AnimalRepository().updateAnimal(
+          widget.existing!.id,
+          name: name,
+          species: species,
+          breed: breed,
+          age: age,
+          gender: gender,
+          size: size,
+          weight: weight,
+          city: city,
+          description: desc,
+          health: health,
+          photoBase64: photoBase64,
+        );
+      } else {
+        await AnimalRepository().addAnimal(
+          name: name,
+          species: species,
+          breed: breed,
+          age: age,
+          gender: gender,
+          size: size,
+          weight: weight,
+          city: city,
+          description: desc,
+          health: health,
+          photoBase64: photoBase64,
+        );
+      }
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Listing posted!")),
+        SnackBar(content: Text(_isEdit ? "Listing updated!" : "Listing posted!")),
       );
     } catch (_) {
       if (mounted) setState(() => _posting = false);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Could not post — check your Firestore rules/connection.")),
+        const SnackBar(
+            content: Text("Could not save — check your connection and try again.")),
       );
     }
   }
