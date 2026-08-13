@@ -5,9 +5,10 @@ import 'package:adopt_animal/features/vet/data/appointment_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class _Appt {
-  final String day, month, vet, time, clinic, reason;
-  final String status; // Confirmed / Requested
-  _Appt(this.day, this.month, this.vet, this.time, this.clinic, this.reason, this.status);
+  final String id, day, month, vet, time, clinic, reason;
+  final String status; // Confirmed / Requested / Cancelled
+  _Appt(this.id, this.day, this.month, this.vet, this.time, this.clinic,
+      this.reason, this.status);
 }
 
 class AppointmentsPage extends StatefulWidget {
@@ -19,13 +20,6 @@ class AppointmentsPage extends StatefulWidget {
 
 class _AppointmentsPageState extends State<AppointmentsPage> {
   int _tab = 0;
-
-  final _upcoming = [
-    _Appt("21", "JUL", "Dr. Ahmed Hassan", "3:00 PM", "Golden Paws Clinic",
-        "Ear irritation follow-up · Luna", "Confirmed"),
-    _Appt("28", "JUL", "Dr. Mona Nabil", "11:30 AM", "Whiskers Vet Center",
-        "Annual vaccines · Milo", "Requested"),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -47,12 +41,21 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                         stream: AppointmentRepository()
                             .watchMine(FirebaseAuth.instance.currentUser?.uid ?? ""),
                         builder: (context, snap) {
-                          final list = (snap.hasData && snap.data!.isNotEmpty)
-                              ? snap.data!
-                                  .map((a) => _Appt(a.day, a.month, a.vetName, a.time,
-                                      a.clinic, a.reason, a.status))
-                                  .toList()
-                              : _upcoming;
+                          if (snap.connectionState == ConnectionState.waiting) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                          final list = (snap.data ?? const <Appointment>[])
+                              .where((a) => a.status != 'Cancelled')
+                              .map((a) => _Appt(a.id, a.day, a.month, a.vetName,
+                                  a.time, a.clinic, a.reason, a.status))
+                              .toList();
+                          if (list.isEmpty) {
+                            return const EmptyState(
+                              icon: Icons.event_outlined,
+                              title: "No upcoming appointments",
+                              subtitle: "Book a vet visit and it'll show up here.",
+                            );
+                          }
                           return ListView.separated(
                             padding: const EdgeInsets.only(bottom: 16),
                             itemCount: list.length,
@@ -174,7 +177,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             ],
           ),
           const SizedBox(height: 14),
-          if (requested)
+          if (requested) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
@@ -189,13 +192,22 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                       style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.w600, fontSize: 13)),
                 ],
               ),
-            )
-          else
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: _actionBtn("Cancel", const Color(0xFFE05B5B), () => _cancel(a)),
+            ),
+          ] else
             Row(
               children: [
-                Expanded(child: _actionBtn(context, "Reschedule", AppColors.primary)),
+                Expanded(
+                    child: _actionBtn(
+                        "Reschedule", AppColors.primary, () => _reschedule(a))),
                 const SizedBox(width: 12),
-                Expanded(child: _actionBtn(context, "Cancel", const Color(0xFFE05B5B))),
+                Expanded(
+                    child: _actionBtn(
+                        "Cancel", const Color(0xFFE05B5B), () => _cancel(a))),
               ],
             ),
         ],
@@ -203,12 +215,11 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     );
   }
 
-  Widget _actionBtn(BuildContext context, String label, Color color) {
+  Widget _actionBtn(String label, Color color, VoidCallback onPressed) {
     return SizedBox(
       height: 46,
       child: OutlinedButton(
-        onPressed: () => ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("$label — coming soon"))),
+        onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           foregroundColor: color,
           side: BorderSide(color: color.withOpacity(0.4)),
@@ -217,5 +228,64 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
         child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
       ),
     );
+  }
+
+  void _snack(String m) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+
+  Future<void> _cancel(_Appt a) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Cancel appointment?"),
+        content: Text("Cancel your appointment with ${a.vet}?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Keep")),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Cancel it")),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await AppointmentRepository().updateStatus(a.id, 'cancelled');
+      if (mounted) _snack("Appointment cancelled");
+    } catch (_) {
+      if (mounted) _snack("Couldn't cancel — try again");
+    }
+  }
+
+  Future<void> _reschedule(_Appt a) async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now.add(const Duration(days: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 10, minute: 0),
+    );
+    if (time == null || !mounted) return;
+    const months = [
+      "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+      "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
+    ];
+    try {
+      await AppointmentRepository().reschedule(
+        a.id,
+        day: date.day.toString(),
+        month: months[date.month - 1],
+        time: time.format(context),
+      );
+      if (mounted) _snack("Rescheduled — awaiting vet confirmation");
+    } catch (_) {
+      if (mounted) _snack("Couldn't reschedule — try again");
+    }
   }
 }

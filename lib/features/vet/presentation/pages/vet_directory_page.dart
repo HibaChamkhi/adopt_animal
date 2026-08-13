@@ -4,6 +4,7 @@ import 'package:adopt_animal/core/app_theme.dart';
 import 'package:adopt_animal/core/sample_data.dart';
 import 'package:adopt_animal/core/widgets/app_widgets.dart';
 import 'package:adopt_animal/features/vet/presentation/pages/vet_profile_page.dart';
+import 'package:adopt_animal/features/vet/data/vet_repository.dart';
 
 class VetDirectoryPage extends StatefulWidget {
   const VetDirectoryPage({super.key});
@@ -14,16 +15,27 @@ class VetDirectoryPage extends StatefulWidget {
 
 class _VetDirectoryPageState extends State<VetDirectoryPage> {
   int _category = 0;
+  String _query = "";
   final _categories = const ["All", "Canine", "Feline", "Exotic"];
+  final _repo = VetRepository();
 
-  List<Vet> get _filtered {
-    if (_category == 0) return sampleVets;
-    return sampleVets.where((v) => v.category == _categories[_category]).toList();
+  List<Vet> _filter(List<Vet> list) {
+    var out = _category == 0
+        ? list
+        : list.where((v) => v.category == _categories[_category]).toList();
+    final q = _query.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      out = out
+          .where((v) =>
+              v.name.toLowerCase().contains(q) ||
+              v.specialty.toLowerCase().contains(q))
+          .toList();
+    }
+    return out;
   }
 
   @override
   Widget build(BuildContext context) {
-    final vets = _filtered;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -32,7 +44,10 @@ class _VetDirectoryPageState extends State<VetDirectoryPage> {
           children: [
             const Text("Vets", style: AppText.heading),
             const SizedBox(height: 16),
-            const AppSearchField(hint: "Search by name or specialty..."),
+            AppSearchField(
+              hint: "Search by name or specialty...",
+              onChanged: (v) => setState(() => _query = v),
+            ),
             const SizedBox(height: 16),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -51,14 +66,32 @@ class _VetDirectoryPageState extends State<VetDirectoryPage> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: vets.isEmpty
-                  ? const EmptyState(icon: Icons.medical_services_outlined, title: "No vets found")
-                  : ListView.separated(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      itemCount: vets.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 14),
-                      itemBuilder: (context, i) => _vetCard(vets[i]),
-                    ),
+              child: StreamBuilder<List<Vet>>(
+                stream: _repo.watch(),
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final all = snap.data ?? <Vet>[];
+                  if (all.isEmpty) {
+                    return const EmptyState(
+                        icon: Icons.medical_services_outlined,
+                        title: "No vets yet",
+                        subtitle: "Vets will appear here once they're added.");
+                  }
+                  final vets = _filter(all);
+                  if (vets.isEmpty) {
+                    return const EmptyState(
+                        icon: Icons.medical_services_outlined, title: "No vets found");
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    itemCount: vets.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 14),
+                    itemBuilder: (context, i) => _vetCard(vets[i]),
+                  );
+                },
+              ),
             ),
           ],
         ),

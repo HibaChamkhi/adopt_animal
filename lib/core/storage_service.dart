@@ -8,8 +8,10 @@ class StorageService {
   Future<String> uploadAnimalPhoto(File file, String uid) async {
     final name = "${DateTime.now().microsecondsSinceEpoch}.jpg";
     final ref = _storage.ref().child("animals/$uid/$name");
-    await ref.putFile(file);
-    return await ref.getDownloadURL();
+    // Fail fast if Storage isn't enabled (free plan) so the caller doesn't
+    // hang forever on retries.
+    await ref.putFile(file).timeout(const Duration(seconds: 6));
+    return await ref.getDownloadURL().timeout(const Duration(seconds: 6));
   }
 
   /// Uploads several files; skips any that fail so one bad file

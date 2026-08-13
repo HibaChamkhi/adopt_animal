@@ -111,10 +111,11 @@ class _AnimalDetailPageState extends State<AnimalDetailPage> {
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
       child: Stack(
         children: [
-          StripedPlaceholder(
-            label: "${a.species} photo carousel",
+          photoOrPlaceholder(
+            a.photoBase64,
+            "${a.species} photo carousel",
+            radius: 24,
             height: 300,
-            borderRadius: 24,
           ),
           Positioned(
             top: 12,

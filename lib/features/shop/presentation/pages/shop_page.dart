@@ -7,6 +7,7 @@ import 'package:adopt_animal/core/widgets/app_widgets.dart';
 import 'package:adopt_animal/core/widgets/settings_widgets.dart';
 import 'package:adopt_animal/features/shop/presentation/pages/product_detail_page.dart';
 import 'package:adopt_animal/features/shop/presentation/pages/cart_page.dart';
+import 'package:adopt_animal/features/shop/data/product_repository.dart';
 
 class ShopPage extends StatefulWidget {
   const ShopPage({super.key});
@@ -17,14 +18,12 @@ class ShopPage extends StatefulWidget {
 
 class _ShopPageState extends State<ShopPage> {
   int _category = 0;
+  String _query = "";
   final _categories = const ["Food", "Toys", "Accessories", "Health"];
-
-  List<Product> get _filtered =>
-      sampleProducts.where((p) => p.category == _categories[_category]).toList();
+  final _repo = ProductRepository();
 
   @override
   Widget build(BuildContext context) {
-    final products = _filtered;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -39,7 +38,10 @@ class _ShopPageState extends State<ShopPage> {
               ],
             ),
             const SizedBox(height: 16),
-            const AppSearchField(hint: "Search products..."),
+            AppSearchField(
+              hint: "Search products...",
+              onChanged: (v) => setState(() => _query = v),
+            ),
             const SizedBox(height: 16),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -58,16 +60,46 @@ class _ShopPageState extends State<ShopPage> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.only(bottom: 16),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 14,
-                  childAspectRatio: 0.60,
-                ),
-                itemCount: products.length,
-                itemBuilder: (context, i) => _productCard(products[i]),
+              child: StreamBuilder<List<Product>>(
+                stream: _repo.watch(),
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final all = snap.data ?? <Product>[];
+                  if (all.isEmpty) {
+                    return const EmptyState(
+                      icon: Icons.shopping_bag_outlined,
+                      title: "No products yet",
+                      subtitle: "Products will appear here once they're added.",
+                    );
+                  }
+                  final q = _query.trim().toLowerCase();
+                  final products = all
+                      .where((p) =>
+                          p.category == _categories[_category] &&
+                          (q.isEmpty ||
+                              p.name.toLowerCase().contains(q) ||
+                              p.description.toLowerCase().contains(q)))
+                      .toList();
+                  if (products.isEmpty) {
+                    return const EmptyState(
+                      icon: Icons.shopping_bag_outlined,
+                      title: "No products in this category",
+                    );
+                  }
+                  return GridView.builder(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 14,
+                      crossAxisSpacing: 14,
+                      childAspectRatio: 0.60,
+                    ),
+                    itemCount: products.length,
+                    itemBuilder: (context, i) => _productCard(products[i]),
+                  );
+                },
               ),
             ),
           ],

@@ -56,8 +56,8 @@ class _MyListingsPageState extends State<MyListingsPage> {
       decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(28)),
       child: Row(
         children: [
-          _tabBtn("Listings (2)", 0),
-          _tabBtn("Requests (3)", 1),
+          _tabBtn("Listings", 0),
+          _tabBtn("Requests", 1),
         ],
       ),
     );
@@ -90,46 +90,35 @@ class _MyListingsPageState extends State<MyListingsPage> {
     return StreamBuilder<List<Animal>>(
       stream: AnimalRepository().watchMyListings(uid),
       builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
         final mine = snap.data ?? const <Animal>[];
-        if (mine.isNotEmpty) {
-          return ListView.separated(
-            padding: const EdgeInsets.only(bottom: 90),
-            itemCount: mine.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 14),
-            itemBuilder: (context, i) {
-              final a = mine[i];
-              return _listingCard(
-                name: a.name,
-                sub: "${a.breed} · ${a.age}",
-                photo: a.photoLabel,
-                adopted: a.status == "adopted",
-                requests: 0,
-                views: 0,
-              );
-            },
+        if (mine.isEmpty) {
+          return const EmptyState(
+            icon: Icons.pets,
+            title: "No listings yet",
+            subtitle: "Tap + to list a pet for adoption.",
           );
         }
-        // Fallback demo listings until you post real ones.
-        return ListView(
+        return ListView.separated(
           padding: const EdgeInsets.only(bottom: 90),
-          children: [
-            _listingCard(
-              name: "Bella", sub: "Labrador mix · 3 yr", photo: "dog photo",
-              adopted: false, requests: 3, views: 48,
-            ),
-            const SizedBox(height: 14),
-            _listingCard(
-              name: "Simba", sub: "Persian cat · 5 yr", photo: "cat photo",
-              adopted: true, adoptedBy: "Adopted by Nour · June 12",
-            ),
-            const SizedBox(height: 24),
-            const Text("NEW REQUEST",
-                style: TextStyle(
-                    color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 1)),
-            const SizedBox(height: 12),
-            _requestCard("S", "Sarah M.", "Bella",
-                "\"We're a family of four with a garden...\""),
-          ],
+          itemCount: mine.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 14),
+          itemBuilder: (context, i) {
+            final a = mine[i];
+            return _listingCard(
+              name: a.name,
+              sub: "${a.breed} · ${a.age}",
+              photo: a.photoLabel,
+              photoBase64: a.photoBase64,
+              adopted: a.status == "adopted",
+              requests: 0,
+              views: 0,
+              onEdit: () => _openEdit(a),
+              onDelete: () => _confirmDelete(a),
+            );
+          },
         );
       },
     );
@@ -140,29 +129,34 @@ class _MyListingsPageState extends State<MyListingsPage> {
     return StreamBuilder<List<AdoptionRequest>>(
       stream: AdoptionRequestRepository().watchForOwner(uid),
       builder: (context, snap) {
-        if (snap.hasData && snap.data!.isNotEmpty) {
-          final reqs = snap.data!;
-          return ListView.separated(
-            padding: const EdgeInsets.only(bottom: 90),
-            itemCount: reqs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 14),
-            itemBuilder: (context, i) {
-              final r = reqs[i];
-              final initial = r.adopterName.isNotEmpty ? r.adopterName[0] : "?";
-              return _requestCard(initial, r.adopterName, r.animalName, r.message);
-            },
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final reqs = snap.data ?? const <AdoptionRequest>[];
+        if (reqs.isEmpty) {
+          return const EmptyState(
+            icon: Icons.mail_outline,
+            title: "No requests yet",
+            subtitle: "Adoption requests for your pets will appear here.",
           );
         }
-        // Fallback sample requests until real ones arrive.
-        return ListView(
+        return ListView.separated(
           padding: const EdgeInsets.only(bottom: 90),
-          children: [
-            _requestCard("S", "Sarah M.", "Bella", "\"We're a family of four with a garden...\""),
-            const SizedBox(height: 14),
-            _requestCard("A", "Ali H.", "Bella", "\"I work from home and have a big balcony...\""),
-            const SizedBox(height: 14),
-            _requestCard("N", "Noha F.", "Bella", "\"We lost our old dog and would love...\""),
-          ],
+          itemCount: reqs.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 14),
+          itemBuilder: (context, i) {
+            final r = reqs[i];
+            final initial = r.adopterName.isNotEmpty ? r.adopterName[0] : "?";
+            return _requestCard(
+              initial,
+              r.adopterName,
+              r.animalName,
+              r.message,
+              status: r.status,
+              onAccept: () => _accept(r),
+              onDecline: () => _decline(r),
+            );
+          },
         );
       },
     );
@@ -172,10 +166,13 @@ class _MyListingsPageState extends State<MyListingsPage> {
     required String name,
     required String sub,
     required String photo,
+    String photoBase64 = "",
     required bool adopted,
     int requests = 0,
     int views = 0,
     String adoptedBy = "",
+    VoidCallback? onEdit,
+    VoidCallback? onDelete,
   }) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -191,7 +188,7 @@ class _MyListingsPageState extends State<MyListingsPage> {
         children: [
           SizedBox(
             width: 64, height: 64,
-            child: StripedPlaceholder(label: photo, borderRadius: 14),
+            child: photoOrPlaceholder(photoBase64, photo, radius: 14),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -231,9 +228,17 @@ class _MyListingsPageState extends State<MyListingsPage> {
                       const SizedBox(width: 4),
                       Text("$views views", style: AppText.secondary),
                       const Spacer(),
-                      const AppIcon(AppIcons.edit, size: 18, color: AppColors.textSecondary),
+                      GestureDetector(
+                        onTap: onEdit,
+                        child: const AppIcon(AppIcons.edit,
+                            size: 18, color: AppColors.textSecondary),
+                      ),
                       const SizedBox(width: 14),
-                      const AppIcon(AppIcons.delete, size: 18, color: AppColors.textSecondary),
+                      GestureDetector(
+                        onTap: onDelete,
+                        child: const AppIcon(AppIcons.delete,
+                            size: 18, color: Color(0xFFE05B5B)),
+                      ),
                     ],
                   ),
               ],
@@ -244,7 +249,10 @@ class _MyListingsPageState extends State<MyListingsPage> {
     );
   }
 
-  Widget _requestCard(String initial, String who, String pet, String msg) {
+  Widget _requestCard(String initial, String who, String pet, String msg,
+      {String status = 'pending',
+      VoidCallback? onAccept,
+      VoidCallback? onDecline}) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -291,43 +299,107 @@ class _MyListingsPageState extends State<MyListingsPage> {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: ElevatedButton(
-                    onPressed: () => _snack("Accepted"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          if (status == 'pending')
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 44,
+                    child: ElevatedButton(
+                      onPressed: onAccept,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      ),
+                      child: const Text("Accept", style: TextStyle(fontWeight: FontWeight.w700)),
                     ),
-                    child: const Text("Accept", style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: OutlinedButton(
-                    onPressed: () => _snack("Declined"),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary,
-                      side: const BorderSide(color: AppColors.stroke),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 44,
+                    child: OutlinedButton(
+                      onPressed: onDecline,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textSecondary,
+                        side: const BorderSide(color: AppColors.stroke),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      ),
+                      child: const Text("Decline", style: TextStyle(fontWeight: FontWeight.w700)),
                     ),
-                    child: const Text("Decline", style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),
+              ],
+            )
+          else
+            Align(
+              alignment: Alignment.centerLeft,
+              child: StatusBadge(
+                label: status == 'accepted' ? 'Accepted' : 'Declined',
+                type: status == 'accepted'
+                    ? BadgeType.success
+                    : BadgeType.neutral,
               ),
-            ],
-          ),
+            ),
         ],
       ),
     );
+  }
+
+  Future<void> _openEdit(Animal a) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ListForAdoptionPage(existing: a)),
+    );
+  }
+
+  Future<void> _confirmDelete(Animal a) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Delete listing?"),
+        content: Text("Remove ${a.name} from adoption? This can't be undone."),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Keep")),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Delete")),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await AnimalRepository().delete(a.id);
+      _snack("Listing deleted");
+    } catch (_) {
+      _snack("Couldn't delete — try again");
+    }
+  }
+
+  Future<void> _accept(AdoptionRequest r) async {
+    try {
+      await AdoptionRequestRepository().updateStatus(r.id, 'accepted');
+      if (r.animalId.isNotEmpty) {
+        await AnimalRepository().setStatus(r.animalId, 'adopted');
+      }
+      _snack("Request accepted");
+    } catch (e) {
+      _snack("Couldn't accept — try again");
+    }
+  }
+
+  Future<void> _decline(AdoptionRequest r) async {
+    try {
+      await AdoptionRequestRepository().updateStatus(r.id, 'declined');
+      _snack("Request declined");
+    } catch (e) {
+      _snack("Couldn't decline — try again");
+    }
   }
 
   void _snack(String s) =>
