@@ -10,3 +10,13 @@ rehome? Post a listing with photos and details, then manage your listings and th
 requests that come in. Shop for everything your pet needs, keep the animals you
 love in your saved list, and reach a vet by chat, call, or a booked appointment
 when you need care.
+
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/adopt.png" width="30%" alt="Adopt — browse pets" />
+  &nbsp;&nbsp;
+  <img src="screenshots/vets.png" width="30%" alt="Vets — directory" />
+  &nbsp;&nbsp;
+  <img src="screenshots/checkout.png" width="30%" alt="Checkout" />
+</p>
